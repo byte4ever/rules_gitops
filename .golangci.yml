@@ -9,7 +9,6 @@ linters:
     - errname
     - gochecknoglobals
     - gocritic
-    - gofumpt
     - gosec
     - nilnil
     - noctx
@@ -80,6 +79,7 @@ linters:
 
 formatters:
   enable:
+    - gofumpt
     - goimports
 
   settings:
