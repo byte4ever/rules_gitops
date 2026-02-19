@@ -1,0 +1,93 @@
+---
+version: "2"
+
+linters:
+  default: none
+  enable:
+    - decorder
+    - errcheck
+    - errname
+    - gochecknoglobals
+    - gocritic
+    - gofumpt
+    - gosec
+    - nilnil
+    - noctx
+    - paralleltest
+    - testpackage
+    - varnamelen
+    - wrapcheck
+
+  settings:
+    decorder:
+      dec-order:
+        - type
+        - const
+        - var
+        - func
+      disable-dec-order-check: false
+
+    errcheck:
+      check-type-assertions: true
+      check-blank: true
+
+    gosec:
+      excludes:
+        - G101
+
+    nilnil:
+      checked-types:
+        - chan
+        - func
+        - iface
+        - map
+        - ptr
+
+    paralleltest:
+      ignore-missing: false
+      ignore-missing-subtests: false
+
+    testpackage:
+      skip-regexp: (export|internal)_test\.go
+
+    varnamelen:
+      min-name-length: 2
+      ignore-names:
+        - i
+        - j
+        - k
+        - n
+        - ok
+        - t
+        - w
+        - r
+
+    wrapcheck:
+      ignore-sigs:
+        - .Errorf(
+        - errors.New(
+        - errors.Unwrap(
+        - errors.Join(
+
+  exclusions:
+    generated: lax
+    rules:
+      - path: _test\.go
+        linters:
+          - wrapcheck
+          - varnamelen
+          - gochecknoglobals
+
+formatters:
+  enable:
+    - goimports
+
+  settings:
+    goimports:
+      local-prefixes:
+        - github.com/byte4ever/rules_gitops
+
+run:
+  timeout: 5m
+  modules-download-mode: readonly
+  allow-parallel-runners: true
