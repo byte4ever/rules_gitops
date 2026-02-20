@@ -5,6 +5,7 @@ Implementation of external image information provider suitable for injection int
 load(":push.bzl", "K8sPushInfo")
 
 def _external_image_impl(ctx):
+    """Write the image digest to a file and return K8sPushInfo."""
     sv = ctx.attr.image.split("@", 1)
     if (len(sv) == 1) and (not ctx.attr.digest):
         fail("digest must be specified either in image or as a separate attribute")
@@ -32,6 +33,7 @@ def _external_image_impl(ctx):
 
 external_image = rule(
     implementation = _external_image_impl,
+    doc = "Declares an externally-hosted container image for injection into manifests via K8sPushInfo.",
     attrs = {
         "image": attr.string(mandatory = True, doc = "The image location, e.g. gcr.io/foo/bar:baz"),
         "image_name": attr.string(doc = "Image name, e.g. exernalserver. DEPRECATED: Use full target label instead, e.g. //images:externalserver"),

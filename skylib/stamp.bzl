@@ -57,6 +57,7 @@ def stamp(ctx, string, files, tmpfilename, in_runtime = False):
     return string
 
 def _stamp_value_impl(ctx):
+    """Run the stamper CLI on the str attribute and write the result."""
     stamps = [ctx.file._info_file]
     stamp_args = [
         "--stamp-info-file=%s" % sf.path
@@ -76,6 +77,7 @@ def _stamp_value_impl(ctx):
 
 stamp_value = rule(
     implementation = _stamp_value_impl,
+    doc = "Stamps a string by substituting {VAR} placeholders from workspace status files.",
     attrs = {
         "str": attr.string(default = "{BUILD_USER}"),
         "_info_file": attr.label(
@@ -95,6 +97,7 @@ stamp_value = rule(
 )
 
 def _more_stable_status_impl(ctx):
+    """Filter stable-status.txt to include only the requested variables."""
     v = " ".join(["-e ^" + var for var in ctx.attr.vars])
     ctx.actions.run_shell(
         inputs = [ctx.info_file],
@@ -106,6 +109,7 @@ def _more_stable_status_impl(ctx):
 # Generate reduced more stable version of stable-status.txt
 # Limited number of rows is extracted now to make it cacheable for CI/CD
 more_stable_status = rule(
+    doc = "Extracts selected variables from stable-status.txt into a reduced status file.",
     attrs = {
         "vars": attr.string_list(
             mandatory = True,
