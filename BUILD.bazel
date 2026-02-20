@@ -1,0 +1,16 @@
+load("@gazelle//:def.bzl", "gazelle")
+
+# gazelle:prefix github.com/byte4ever/rules_gitops
+# gazelle:exclude examples
+# gazelle:exclude inspiration
+# gazelle:proto disable_global
+# gazelle:build_tags darwin,linux
+
+gazelle(
+    name = "gazelle",
+    command = "fix",
+    extra_args = [
+        "-build_file_name",
+        "BUILD,BUILD.bazel",
+    ],
+)

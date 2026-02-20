@@ -1,0 +1,138 @@
+name: CI
+
+on:
+  push:
+    branches: [main, "feature/*"]
+  pull_request:
+    branches: [main]
+
+jobs:
+  lint-go:
+    name: Lint Go
+    runs-on: ubuntu-24.04
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-go@v5
+        with:
+          go-version-file: go.mod
+      - name: golangci-lint
+        uses: golangci/golangci-lint-action@v6
+        with:
+          version: latest
+
+  test-go:
+    name: Test Go
+    runs-on: ubuntu-24.04
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-go@v5
+        with:
+          go-version-file: go.mod
+      - name: Run tests with coverage
+        run: |
+          go test -race -coverprofile=coverage.out -covermode=atomic ./...
+      - name: Check coverage threshold
+        run: |
+          COVERAGE=$(go tool cover -func=coverage.out | grep total | awk '{print $3}' | tr -d '%')
+          echo "Total coverage: ${COVERAGE}%"
+          if (( $(echo "${COVERAGE} < 80" | bc -l) )); then
+            echo "Coverage ${COVERAGE}% is below threshold of 80%"
+            exit 1
+          fi
+      - name: Fuzz tests (30s budget)
+        run: |
+          for pkg in $(go list ./... | xargs -I{} sh -c 'go test -list "^Fuzz" {} 2>/dev/null | grep "^Fuzz" && echo {}' | grep -v "^Fuzz"); do
+            echo "Fuzzing package: ${pkg}"
+            go test -fuzz=. -fuzztime=30s "${pkg}" || true
+          done
+
+  buildifier:
+    name: Buildifier
+    runs-on: ubuntu-24.04
+    steps:
+      - uses: actions/checkout@v4
+      - name: Install buildifier
+        run: |
+          TOOLS_DIR="${HOME}/.local/bin"
+          mkdir -p "${TOOLS_DIR}"
+          curl -Ls -o "${TOOLS_DIR}/buildifier" \
+            "https://github.com/bazelbuild/buildtools/releases/download/v7.3.1/buildifier-linux-amd64"
+          chmod +x "${TOOLS_DIR}/buildifier"
+          echo "${TOOLS_DIR}" >> "${GITHUB_PATH}"
+      - name: Check formatting
+        run: |
+          find . -type f \( \
+            -name '*.bzl' \
+            -o -name '*.sky' \
+            -o -name BUILD \
+            -o -name BUILD.bazel \
+            -o -name MODULE.bazel \
+          \) -not -path './inspiration/*' \
+          | xargs buildifier -mode=check -lint=warn \
+            --warnings=-module-docstring,-function-docstring,-function-docstring-header,-function-docstring-args,-function-docstring-return,-print \
+          || {
+            echo "Error: buildifier check failed."
+            echo "Run: buildifier -mode=fix <files>"
+            exit 1
+          }
+
+  test-starlark:
+    name: Test Starlark
+    runs-on: ubuntu-24.04
+    env:
+      USE_BAZEL_VERSION: "8.0.0"
+    steps:
+      - uses: actions/checkout@v4
+      - name: Mount Bazel cache
+        uses: actions/cache@v4
+        with:
+          path: ~/.cache/bazel
+          key: bazel-8-${{ github.sha }}
+          restore-keys: |
+            bazel-8-
+      - name: Install Bazel
+        run: |
+          TOOLS_DIR="${HOME}/.local/bin"
+          mkdir -p "${TOOLS_DIR}"
+          curl -Ls -o "${TOOLS_DIR}/bazel" \
+            "https://github.com/bazelbuild/bazelisk/releases/download/v1.25.0/bazelisk-linux-amd64"
+          chmod +x "${TOOLS_DIR}/bazel"
+          echo "${TOOLS_DIR}" >> "${GITHUB_PATH}"
+      - name: Build
+        run: bazel build //...
+      - name: Test
+        run: bazel test //...
+      - name: Build examples
+        run: cd examples && bazel build //...
+      - name: Test examples
+        run: cd examples && bazel test //...
+
+  e2e:
+    name: E2E
+    runs-on: ubuntu-24.04
+    needs: [test-starlark]
+    env:
+      USE_BAZEL_VERSION: "8.0.0"
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-go@v5
+        with:
+          go-version-file: go.mod
+      - name: Mount Bazel cache
+        uses: actions/cache@v4
+        with:
+          path: ~/.cache/bazel
+          key: bazel-8-e2e-${{ github.sha }}
+          restore-keys: |
+            bazel-8-e2e-
+            bazel-8-
+      - name: Install tools
+        run: |
+          TOOLS_DIR="${HOME}/.local/bin"
+          mkdir -p "${TOOLS_DIR}"
+          curl -Ls -o "${TOOLS_DIR}/bazel" \
+            "https://github.com/bazelbuild/bazelisk/releases/download/v1.25.0/bazelisk-linux-amd64"
+          chmod +x "${TOOLS_DIR}/bazel"
+          echo "${TOOLS_DIR}" >> "${GITHUB_PATH}"
+      - name: Run E2E tests
+        run: ./e2e_test.sh
