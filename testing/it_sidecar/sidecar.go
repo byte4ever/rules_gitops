@@ -1,6 +1,3 @@
-// Package sidecar provides Kubernetes integration test
-// lifecycle helpers that watch pods, set up port
-// forwarding, tail logs, and handle graceful cleanup.
 package sidecar
 
 import (

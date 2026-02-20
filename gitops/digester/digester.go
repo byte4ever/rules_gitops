@@ -1,4 +1,3 @@
-// Package digester calculates and verifies SHA256 file digests.
 package digester
 
 import (

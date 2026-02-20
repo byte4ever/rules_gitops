@@ -1,7 +1,3 @@
-// Package filter transforms Kubernetes manifests for
-// integration testing by replacing persistent storage
-// references with ephemeral volumes and adjusting
-// certificate issuers.
 package filter
 
 import (

@@ -1,6 +1,3 @@
-// Package stamper reads Bazel workspace status files and
-// substitutes single-brace {VAR} placeholders in format
-// strings.
 package stamper
 
 import (

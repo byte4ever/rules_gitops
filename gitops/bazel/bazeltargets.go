@@ -1,5 +1,3 @@
-// Package bazel provides utilities for working with Bazel
-// target labels and paths.
 package bazel
 
 import "strings"

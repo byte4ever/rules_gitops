@@ -1,5 +1,3 @@
-// Package bitbucket implements a git.GitProvider that
-// creates pull requests on Bitbucket Server (Stash).
 package bitbucket
 
 import (

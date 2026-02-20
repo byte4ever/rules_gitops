@@ -1,6 +1,3 @@
-// Package templating provides a fast template engine that
-// substitutes variables from stamp info files and explicit
-// key-value pairs.
 package templating
 
 import (

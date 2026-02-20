@@ -1,6 +1,3 @@
-// Package git provides git repository operations and a
-// strategy interface for creating pull requests across
-// different git hosting platforms.
 package git
 
 import "context"

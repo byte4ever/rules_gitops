@@ -1,5 +1,3 @@
-// Package commitmsg generates and parses gitops target lists
-// embedded in git commit messages.
 package commitmsg
 
 import (

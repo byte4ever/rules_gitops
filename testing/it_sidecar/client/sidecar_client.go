@@ -1,6 +1,3 @@
-// Package client provides a test-infrastructure helper
-// that Go integration tests use to orchestrate the
-// it_sidecar process from TestMain.
 package client
 
 import (

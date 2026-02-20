@@ -1,4 +1,3 @@
-// Package exec provides shell command execution helpers.
 package exec
 
 import (

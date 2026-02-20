@@ -1,5 +1,3 @@
-// Package gitlab implements a git.GitProvider that
-// creates merge requests on GitLab.
 package gitlab
 
 import (

@@ -1,6 +1,3 @@
-// Package resolver walks multi-document YAML looking for
-// container image references and substitutes them with
-// registry URLs from an image map.
 package resolver
 
 import (

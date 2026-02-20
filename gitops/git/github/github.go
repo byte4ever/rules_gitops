@@ -1,5 +1,3 @@
-// Package github implements a git.GitProvider that
-// creates pull requests on GitHub (cloud or enterprise).
 package github
 
 import (
