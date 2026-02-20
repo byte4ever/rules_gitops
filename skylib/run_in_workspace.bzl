@@ -111,6 +111,19 @@ def workspace_binary(
         visibility = None,
         data = None,
         root_file = "//:MODULE.bazel"):
+    """Creates an executable target that runs a binary from the workspace root.
+
+    Wraps a binary tool so it executes with the working directory set to the
+    workspace root (located by finding root_file in runfiles).
+
+    Args:
+        name: Target name.
+        cmd: Label of the binary to wrap.
+        args: Optional arguments to pass to the binary.
+        visibility: Bazel visibility.
+        data: Additional data dependencies.
+        root_file: Label used to locate the workspace root in runfiles.
+    """
     script_name = name + "_script"
     _workspace_binary_script(
         name = script_name,

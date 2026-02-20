@@ -45,12 +45,15 @@ set -euo pipefail
 {kustomize} build --load-restrictor LoadRestrictionsNone --reorder legacy {kustomize_dir} {template_part} {resolver_part} >{out}
 """
 
-# buildifier: disable=provider-params
-KustomizeInfo = provider(fields = [
-    "image_pushes",
-])
+KustomizeInfo = provider(
+    doc = "Carries image push statements from kustomize rules to kubectl/gitops rules.",
+    fields = {
+        "image_pushes": "Depset of Files containing image push shell script fragments.",
+    },
+)
 
 def _kustomize_impl(ctx):
+    """Generate kustomization.yaml, run kustomize build, expand templates, and resolve images."""
     kustomization_yaml_file = ctx.actions.declare_file(ctx.attr.name + "/kustomization.yaml")
     root = kustomization_yaml_file.dirname
 
@@ -258,27 +261,28 @@ def _kustomize_impl(ctx):
 
 kustomize = rule(
     implementation = _kustomize_impl,
+    doc = "Builds Kubernetes manifests using kustomize with template expansion and image resolution.",
     attrs = {
-        "configmaps_srcs": attr.label_list(allow_files = True),
-        "secrets_srcs": attr.label_list(allow_files = True),
-        "deps_aliases": attr.string_dict(default = {}),
-        "disable_name_suffix_hash": attr.bool(default = True),
-        "end_tag": attr.string(default = "}}"),
+        "configmaps_srcs": attr.label_list(allow_files = True, doc = "Configmap source files."),
+        "secrets_srcs": attr.label_list(allow_files = True, doc = "Secret source files."),
+        "deps_aliases": attr.string_dict(default = {}, doc = "Aliases for template dependencies."),
+        "disable_name_suffix_hash": attr.bool(default = True, doc = "Disable hash suffix on configmap/secret names."),
+        "end_tag": attr.string(default = "}}", doc = "End delimiter for template expansion."),
         "images": attr.label_list(doc = "a list of images used in manifests", providers = (K8sPushInfo,)),
-        "manifests": attr.label_list(allow_files = True),
-        "name_prefix": attr.string(),
-        "name_suffix": attr.string(),
-        "namespace": attr.string(),
+        "manifests": attr.label_list(allow_files = True, doc = "Kubernetes manifest files."),
+        "name_prefix": attr.string(doc = "Kustomize namePrefix to add to all resources."),
+        "name_suffix": attr.string(doc = "Kustomize nameSuffix to add to all resources."),
+        "namespace": attr.string(doc = "Kubernetes namespace."),
         "objects": attr.label_list(doc = "a list of dependent kustomize objects", providers = (KustomizeInfo,)),
-        "patches": attr.label_list(allow_files = True),
+        "patches": attr.label_list(allow_files = True, doc = "Kustomize patches to apply."),
         "image_name_patches": attr.string_dict(default = {}, doc = "set new names for selected images"),
         "image_tag_patches": attr.string_dict(default = {}, doc = "set new tags for selected images"),
-        "start_tag": attr.string(default = "{{"),
-        "substitutions": attr.string_dict(default = {}),
-        "deps": attr.label_list(default = [], allow_files = True),
-        "configurations": attr.label_list(allow_files = True),
-        "common_labels": attr.string_dict(default = {}),
-        "common_annotations": attr.string_dict(default = {}),
+        "start_tag": attr.string(default = "{{", doc = "Start delimiter for template expansion."),
+        "substitutions": attr.string_dict(default = {}, doc = "Template variable substitutions."),
+        "deps": attr.label_list(default = [], allow_files = True, doc = "Additional template dependencies."),
+        "configurations": attr.label_list(allow_files = True, doc = "Additional kustomize configuration files."),
+        "common_labels": attr.string_dict(default = {}, doc = "Labels applied to all resources."),
+        "common_annotations": attr.string_dict(default = {}, doc = "Annotations applied to all resources."),
         "_build_user_value": attr.label(
             default = Label("//skylib:build_user_value.txt"),
             allow_single_file = True,
@@ -363,10 +367,17 @@ def _remove_prefixes(s, prefixes):
         s = _remove_prefix(s, prefix)
     return s
 
-def imagePushStatements(
-        ctx,
-        kustomize_objs,
-        files = []):
+def imagePushStatements(ctx, kustomize_objs, files = []):
+    """Collect image push shell script fragments from kustomize objects.
+
+    Args:
+        ctx: Rule context.
+        kustomize_objs: List of targets providing KustomizeInfo.
+        files: Additional files to include.
+
+    Returns:
+        Tuple of (statements string, files list, dep_runfiles depset).
+    """
     statements = ""
     trans_img_pushes = depset(transitive = [obj[KustomizeInfo].image_pushes for obj in kustomize_objs]).to_list()
     statements += "\n".join([
@@ -382,6 +393,7 @@ def imagePushStatements(
     return statements, files, dep_runfiles
 
 def _gitops_impl(ctx):
+    """Generate a shell script that pushes images and writes manifests to a gitops directory tree."""
     cluster = ctx.attr.cluster
     strip_prefixes = ctx.attr.strip_prefixes
     files = []
@@ -434,6 +446,8 @@ fi
     ]
 
 gitops = rule(
+    implementation = _gitops_impl,
+    doc = "Generates a gitops output executable that writes rendered manifests to a directory tree.",
     attrs = {
         "srcs": attr.label_list(providers = (KustomizeInfo,)),
         "cluster": attr.string(mandatory = True),
@@ -457,10 +471,10 @@ gitops = rule(
         ),
     },
     executable = True,
-    implementation = _gitops_impl,
 )
 
 def _kubectl_impl(ctx):
+    """Generate a shell script that pushes images and runs kubectl apply/delete."""
     files = [] + ctx.files.srcs
 
     cluster_arg = ctx.attr.cluster
@@ -526,6 +540,8 @@ def _kubectl_impl(ctx):
     ]
 
 kubectl = rule(
+    implementation = _kubectl_impl,
+    doc = "Generates a kubectl apply/delete executable for rendered manifests.",
     attrs = {
         "srcs": attr.label_list(providers = (KustomizeInfo,)),
         "cluster": attr.string(mandatory = True),
@@ -558,5 +574,4 @@ kubectl = rule(
         ),
     },
     executable = True,
-    implementation = _kubectl_impl,
 )
