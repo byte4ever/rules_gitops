@@ -35,6 +35,7 @@ def _runfiles(ctx, f):
     return "${RUNFILES}/%s" % _runfile_path(ctx, f)
 
 def _show_impl(ctx):
+    """Build a shell script that renders and prints kustomize output through the template engine."""
     script_content = "#!/usr/bin/env bash\nset -e\n"
 
     kustomize_outputs = []
@@ -84,6 +85,7 @@ def _show_impl(ctx):
 
 show = rule(
     implementation = _show_impl,
+    doc = "Generates an executable that renders and prints the final Kubernetes manifests through the template engine.",
     attrs = {
         "src": attr.label(
             doc = "Input file.",
@@ -642,6 +644,7 @@ def _kubeconfig_impl(repository_ctx):
     }
 
 kubeconfig = repository_rule(
+    doc = "Finds local kubectl and Kubernetes certificates to create a kubeconfig file for the specified cluster.",
     attrs = {
         "cluster": attr.string(),
         "server": attr.string(),
@@ -662,6 +665,7 @@ kubeconfig = repository_rule(
 # ---------------------------------------------------
 
 def _k8s_test_namespace_impl(ctx):
+    """Build a namespace reservation script from the template."""
     files = []  # runfiles list
 
     # add files referenced by rule attributes
@@ -693,6 +697,7 @@ def _k8s_test_namespace_impl(ctx):
     )]
 
 k8s_test_namespace = rule(
+    doc = "Creates a namespace reservation script for integration tests.",
     attrs = {
         "kubeconfig": attr.label(
             allow_single_file = True,
@@ -719,6 +724,7 @@ k8s_test_namespace = rule(
 # ---------------------------------------------------
 
 def _k8s_test_setup_impl(ctx):
+    """Build the integration test setup script that pushes images, applies manifests, and configures port forwarding."""
     files = []  # runfiles list
     transitive = []
     commands = []  # the list of commands to execute
@@ -857,6 +863,7 @@ def _k8s_test_setup_impl(ctx):
     )]
 
 k8s_test_setup = rule(
+    doc = "Creates an integration test setup executable that pushes images, applies manifests, waits for pods, and sets up port forwarding.",
     attrs = {
         "kubeconfig": attr.label(
             default = Label(
