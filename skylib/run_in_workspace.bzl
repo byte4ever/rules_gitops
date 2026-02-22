@@ -63,9 +63,7 @@ cd $(dirname $(readlink {root_file}))
         ],
     )
     runfiles = runfiles.merge(
-        ctx.attr._bash_runfiles[
-            DefaultInfo
-        ].default_runfiles,
+        ctx.attr._bash_runfiles[DefaultInfo].default_runfiles,
     )
     return [DefaultInfo(runfiles = runfiles)]
 
@@ -80,10 +78,7 @@ _workspace_binary_script = rule(
             allow_single_file = True,
         ),
         "_bash_runfiles": attr.label(
-            default = (
-                "@bazel_tools"
-                "//tools/bash/runfiles"
-            ),
+            default = "@bazel_tools//tools/bash/runfiles",
         ),
     },
     executable = True,

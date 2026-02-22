@@ -1,0 +1,28 @@
+load(":stamp.bzl", "more_stable_status", "stamp_value")
+
+exports_files([
+    "k8s_gitops.sh.tpl",
+    "k8s_cmd.sh.tpl",
+    "k8s_test_namespace.sh.tpl",
+    "push-tag.sh.tpl",
+])
+
+sh_binary(
+    name = "oci_push_launcher",
+    srcs = ["oci_push_launcher.sh"],
+    visibility = ["//visibility:public"],
+)
+
+stamp_value(
+    name = "build_user_value",
+    str = "{BUILD_USER}",
+    visibility = ["//visibility:public"],
+)
+
+more_stable_status(
+    name = "more_stable_status",
+    vars = [
+        "BUILD_USER",
+    ],
+    visibility = ["//visibility:public"],
+)

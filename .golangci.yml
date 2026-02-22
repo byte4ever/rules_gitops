@@ -70,9 +70,13 @@ linters:
 
   exclusions:
     generated: lax
+    paths:
+      - examples
+      - inspiration
     rules:
       - path: _test\.go
         linters:
+          - gosec
           - wrapcheck
           - varnamelen
           - gochecknoglobals

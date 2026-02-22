@@ -23,6 +23,21 @@ import (
 // string flags (repeated --flag=val usage).
 type sliceFlag []string
 
+// providerFlags bundles provider-specific flag values
+// to keep newGitProvider under the 4-argument limit.
+type providerFlags struct {
+	ghRepoOwner  string
+	ghRepo       string
+	ghToken      string
+	ghEnterprise string
+	glHost       string
+	glRepo       string
+	glToken      string
+	bbEndpoint   string
+	bbUser       string
+	bbPassword   string
+}
+
 // String returns the flag value as a comma-separated
 // string representation.
 func (s *sliceFlag) String() string {
@@ -269,21 +284,6 @@ func run() error {
 	return nil
 }
 
-// providerFlags bundles provider-specific flag values
-// to keep newGitProvider under the 4-argument limit.
-type providerFlags struct {
-	ghRepoOwner  string
-	ghRepo       string
-	ghToken      string
-	ghEnterprise string
-	glHost       string
-	glRepo       string
-	glToken      string
-	bbEndpoint   string
-	bbUser       string
-	bbPassword   string
-}
-
 // newGitProvider creates a git.GitProvider based on the
 // server name. Pattern: Factory -- selects platform
 // implementation at runtime.
@@ -295,11 +295,11 @@ func newGitProvider(
 
 	switch server {
 	case "github":
-		p, err := github.NewProvider(github.Config{
+		gp, err := github.NewProvider(github.Config{
 			RepoOwner:      pf.ghRepoOwner,
-			Repo:            pf.ghRepo,
-			AccessToken:     pf.ghToken,
-			EnterpriseHost:  pf.ghEnterprise,
+			Repo:           pf.ghRepo,
+			AccessToken:    pf.ghToken,
+			EnterpriseHost: pf.ghEnterprise,
 		})
 		if err != nil {
 			return nil, fmt.Errorf(
@@ -307,10 +307,10 @@ func newGitProvider(
 			)
 		}
 
-		return p, nil
+		return gp, nil
 
 	case "gitlab":
-		p, err := gitlab.NewProvider(gitlab.Config{
+		gp, err := gitlab.NewProvider(gitlab.Config{
 			Host:        pf.glHost,
 			Repo:        pf.glRepo,
 			AccessToken: pf.glToken,
@@ -321,10 +321,10 @@ func newGitProvider(
 			)
 		}
 
-		return p, nil
+		return gp, nil
 
 	case "bitbucket":
-		p, err := bitbucket.NewProvider(
+		gp, err := bitbucket.NewProvider(
 			bitbucket.Config{
 				APIEndpoint: pf.bbEndpoint,
 				User:        pf.bbUser,
@@ -337,7 +337,7 @@ func newGitProvider(
 			)
 		}
 
-		return p, nil
+		return gp, nil
 
 	default:
 		return nil, fmt.Errorf(

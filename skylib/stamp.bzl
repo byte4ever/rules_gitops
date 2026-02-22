@@ -85,7 +85,7 @@ stamp_value = rule(
             allow_single_file = True,
         ),
         "_stamper": attr.label(
-            default = Label("//stamper:stamper"),
+            default = Label("//stamper/cmd:stamper"),
             cfg = "exec",
             executable = True,
             allow_files = True,

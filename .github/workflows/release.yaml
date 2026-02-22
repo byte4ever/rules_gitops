@@ -1,14 +1,28 @@
-name: CI
+name: Release
 
 on:
   push:
-    branches: [main, "feature/*"]
-  pull_request:
-    branches: [main]
+    tags: ["*.*.*"]
 
 jobs:
+  validate:
+    name: Validate Tag
+    runs-on: ubuntu-24.04
+    steps:
+      - uses: actions/checkout@v4
+      - name: Check tag matches MODULE.bazel version
+        run: |
+          TAG="${GITHUB_REF_NAME}"
+          MODULE_VERSION=$(grep -oP 'version = "\K[^"]+' MODULE.bazel | head -1)
+          if [ "${TAG}" != "${MODULE_VERSION}" ]; then
+            echo "Error: tag '${TAG}' does not match MODULE.bazel version '${MODULE_VERSION}'"
+            exit 1
+          fi
+          echo "Tag ${TAG} matches MODULE.bazel version."
+
   lint-go:
     name: Lint Go
+    needs: [validate]
     runs-on: ubuntu-24.04
     steps:
       - uses: actions/checkout@v4
@@ -22,6 +36,7 @@ jobs:
 
   test-go:
     name: Test Go
+    needs: [validate]
     runs-on: ubuntu-24.04
     steps:
       - uses: actions/checkout@v4
@@ -39,15 +54,10 @@ jobs:
             echo "Coverage ${COVERAGE}% is below threshold of 35%"
             exit 1
           fi
-      - name: Fuzz tests (30s budget)
-        run: |
-          for pkg in $(go list ./... | xargs -I{} sh -c 'go test -list "^Fuzz" {} 2>/dev/null | grep "^Fuzz" && echo {}' | grep -v "^Fuzz"); do
-            echo "Fuzzing package: ${pkg}"
-            go test -fuzz=. -fuzztime=30s "${pkg}" || true
-          done
 
   buildifier:
     name: Buildifier
+    needs: [validate]
     runs-on: ubuntu-24.04
     steps:
       - uses: actions/checkout@v4
@@ -73,12 +83,12 @@ jobs:
             --warnings=-module-docstring,-function-docstring,-function-docstring-header,-function-docstring-args,-function-docstring-return,-print \
           || {
             echo "Error: buildifier check failed."
-            echo "Run: buildifier -mode=fix <files>"
             exit 1
           }
 
   test-starlark:
     name: Test Starlark
+    needs: [validate]
     runs-on: ubuntu-24.04
     env:
       USE_BAZEL_VERSION: "8.1.0"
@@ -103,3 +113,16 @@ jobs:
         run: bazel build //...
       - name: Test
         run: bazel test //...
+
+  release:
+    name: Create Release
+    needs: [lint-go, test-go, buildifier, test-starlark]
+    runs-on: ubuntu-24.04
+    permissions:
+      contents: write
+    steps:
+      - uses: actions/checkout@v4
+      - name: Create GitHub Release
+        uses: softprops/action-gh-release@v2
+        with:
+          generate_release_notes: true

@@ -337,21 +337,21 @@ func stampChangedFiles(
 
 	changed := repo.GetChangedFiles()
 
-	for _, f := range changed {
-		absPath := filepath.Join(repo.Dir, f)
+	for _, fn := range changed {
+		absPath := filepath.Join(repo.Dir, fn)
 
 		ok, err := digester.VerifyDigest(absPath)
 		if err != nil {
 			return fmt.Errorf(
 				"%s: verify %s: %w",
-				errCtx, f, err,
+				errCtx, fn, err,
 			)
 		}
 
 		if ok {
 			// Digest matches — restore file to
 			// avoid unnecessary changes.
-			repo.RestoreFile(f)
+			repo.RestoreFile(fn)
 
 			continue
 		}
@@ -361,7 +361,7 @@ func stampChangedFiles(
 		); err != nil {
 			return fmt.Errorf(
 				"%s: stamp %s: %w",
-				errCtx, f, err,
+				errCtx, fn, err,
 			)
 		}
 
@@ -370,7 +370,7 @@ func stampChangedFiles(
 		); err != nil {
 			return fmt.Errorf(
 				"%s: save digest %s: %w",
-				errCtx, f, err,
+				errCtx, fn, err,
 			)
 		}
 	}

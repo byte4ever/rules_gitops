@@ -74,7 +74,7 @@ _kustomize_repo = repository_rule(
     implementation = _kustomize_repo_impl,
 )
 
-def _gitops_impl(ctx):
+def _gitops_impl(_ctx):
     _kustomize_repo(name = "kustomize_bin")
 
 gitops = module_extension(

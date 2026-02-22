@@ -32,7 +32,9 @@ oci_image(
 )
 
 CLUSTER = "kind-kind"
+
 USER = "kind-kind"
+
 REGISTRY = "localhost:15000"
 
 k8s_deploy(

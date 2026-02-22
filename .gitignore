@@ -1,2 +1,4 @@
 bazel-*
 /vendor/
+MODULE.bazel.lock
+.serena/

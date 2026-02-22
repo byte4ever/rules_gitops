@@ -13,6 +13,7 @@
 # governing permissions and limitations under the
 # License.
 
+load("//skylib:push.bzl", "k8s_container_push")
 load(
     "//skylib/kustomize:kustomize.bzl",
     "KustomizeInfo",
@@ -21,7 +22,6 @@ load(
     "kustomize",
     kustomize_gitops = "gitops",
 )
-load("//skylib:push.bzl", "k8s_container_push")
 
 def _runfile_path(ctx, f):
     """Return the runfiles-relative path of a file."""
@@ -39,12 +39,7 @@ def _show_impl(ctx):
     script_content = "#!/usr/bin/env bash\nset -e\n"
 
     kustomize_outputs = []
-    script_template = (
-        "{template_engine}"
-        " --template={infile}"
-        " --variable=NAMESPACE={namespace}"
-        " --stamp_info_file={info_file}\n"
-    )
+    script_template = "{template_engine} --template={infile} --variable=NAMESPACE={namespace} --stamp_info_file={info_file}\n"
     for dep in ctx.attr.src.files.to_list():
         kustomize_outputs.append(
             script_template.format(
@@ -132,7 +127,9 @@ def _image_pushes(
             legacy_name,
         ]
         rule_name_parts = [
-            p for p in rule_name_parts if p
+            p
+            for p in rule_name_parts
+            if p
         ]
         rule_name = "_".join(rule_name_parts)
         rule_name = (
@@ -271,17 +268,12 @@ def k8s_deploy(
         )
     if prefix_suffix_app_labels:
         configurations = configurations + [
-            "//skylib/kustomize:nameprefix_deployment_labels_config.yaml",
-            "//skylib/kustomize:namesuffix_deployment_labels_config.yaml",
+            Label("//skylib/kustomize:nameprefix_deployment_labels_config.yaml"),
+            Label("//skylib/kustomize:namesuffix_deployment_labels_config.yaml"),
         ]
     for reservedname in ["CLUSTER", "NAMESPACE"]:
         if substitutions.get(reservedname):
-            fail(
-                "do not put %s in substitutions"
-                " parameter of k8s_deploy. It"
-                " will be added automatically"
-                % reservedname,
-            )
+            fail("do not put %s in substitutions parameter of k8s_deploy. It will be added automatically" % reservedname)
     substitutions = dict(substitutions)
     substitutions["CLUSTER"] = cluster
 
@@ -362,10 +354,7 @@ def k8s_deploy(
     else:
         # gitops
         if not namespace:
-            fail(
-                "namespace must be defined for"
-                " gitops k8s_deploy",
-            )
+            fail("namespace must be defined for gitops k8s_deploy")
         image_pushes = _image_pushes(
             name_suffix = ".push",
             images = images,
@@ -476,10 +465,7 @@ def _kubectl_config(repository_ctx, args):
         quiet = True,
     )
     if exec_result.return_code != 0:
-        fail(
-            "Error executing kubectl config %s"
-            % " ".join(args),
-        )
+        fail("Error executing kubectl config %s" % " ".join(args))
 
 def _kubeconfig_impl(repository_ctx):
     """Find local kubernetes certificates."""
@@ -487,10 +473,7 @@ def _kubeconfig_impl(repository_ctx):
     # find and symlink kubectl
     kubectl = repository_ctx.which("kubectl")
     if not kubectl:
-        fail(
-            "Unable to find kubectl executable."
-            " PATH=%s" % repository_ctx.path,
-        )
+        fail("Unable to find kubectl executable. PATH=%s" % repository_ctx.path)
     repository_ctx.symlink(kubectl, "kubectl")
     repository_ctx.file(
         repository_ctx.path("cluster"),
@@ -516,15 +499,9 @@ def _kubeconfig_impl(repository_ctx):
     server = repository_ctx.attr.server
 
     # check service account first
-    serviceaccount = repository_ctx.path(
-        "/var/run/secrets/kubernetes.io"
-        "/serviceaccount",
-    )
+    serviceaccount = repository_ctx.path("/var/run/secrets/kubernetes.io/serviceaccount")
     if serviceaccount.exists:
-        ca_crt = (
-            "/var/run/secrets/kubernetes.io"
-            "/serviceaccount/ca.crt"
-        )
+        ca_crt = "/var/run/secrets/kubernetes.io/serviceaccount/ca.crt"
         token_file = serviceaccount.get_child(
             "token",
         )
@@ -537,17 +514,10 @@ def _kubeconfig_impl(repository_ctx):
             token = exec_result.stdout.rstrip()
 
         # use master url from the environment
-        if (
-            "KUBERNETES_SERVICE_HOST"
-            in repository_ctx.os.environ
-        ):
+        if "KUBERNETES_SERVICE_HOST" in repository_ctx.os.environ:
             server = "https://%s:%s" % (
-                repository_ctx.os.environ[
-                    "KUBERNETES_SERVICE_HOST"
-                ],
-                repository_ctx.os.environ[
-                    "KUBERNETES_SERVICE_PORT"
-                ],
+                repository_ctx.os.environ["KUBERNETES_SERVICE_HOST"],
+                repository_ctx.os.environ["KUBERNETES_SERVICE_PORT"],
             )
         else:
             # fall back to the default
@@ -629,8 +599,7 @@ def _kubeconfig_impl(repository_ctx):
     # export repository contents
     repository_ctx.file(
         "BUILD",
-        'exports_files(["kubeconfig",'
-        ' "kubectl", "cluster"])',
+        'exports_files(["kubeconfig", "kubectl", "cluster"])',
         False,
     )
 
@@ -708,10 +677,7 @@ k8s_test_namespace = rule(
             allow_single_file = True,
         ),
         "_namespace_template": attr.label(
-            default = Label(
-                "//skylib"
-                ":k8s_test_namespace.sh.tpl",
-            ),
+            default = Label("//skylib:k8s_test_namespace.sh.tpl"),
             allow_single_file = True,
         ),
     },
@@ -769,25 +735,25 @@ def _k8s_test_setup_impl(ctx):
                 _runfiles(
                     ctx,
                     obj.files_to_run.executable,
-                )
-                + " | ${SET_NAMESPACE} $NAMESPACE"
-                + " | ${IT_MANIFEST_FILTER}"
-                + " | ${KUBECTL} apply -f -",
+                ) +
+                " | ${SET_NAMESPACE} $NAMESPACE" +
+                " | ${IT_MANIFEST_FILTER}" +
+                " | ${KUBECTL} apply -f -",
             )
         else:
             files += obj.files.to_list()
             commands += [
                 ctx.executable
                     ._template_engine
-                    .short_path
-                + " --template="
-                + filename.short_path
-                + " --variable="
-                + "NAMESPACE=${NAMESPACE}"
-                + " | ${SET_NAMESPACE}"
-                + " $NAMESPACE"
-                + " | ${IT_MANIFEST_FILTER}"
-                + " | ${KUBECTL} apply -f -"
+                    .short_path +
+                " --template=" +
+                filename.short_path +
+                " --variable=" +
+                "NAMESPACE=${NAMESPACE}" +
+                " | ${SET_NAMESPACE}" +
+                " $NAMESPACE" +
+                " | ${IT_MANIFEST_FILTER}" +
+                " | ${KUBECTL} apply -f -"
                 for filename in obj.files.to_list()
             ]
 
@@ -851,9 +817,7 @@ def _k8s_test_setup_impl(ctx):
         ),
     )
     rf = rf.merge(
-        ctx.attr._set_namespace[
-            DefaultInfo
-        ].default_runfiles,
+        ctx.attr._set_namespace[DefaultInfo].default_runfiles,
     )
     for dep_rf in pushes_runfiles:
         rf = rf.merge(dep_rf)
@@ -894,10 +858,7 @@ k8s_test_setup = rule(
             allow_single_file = True,
         ),
         "_it_sidecar": attr.label(
-            default = Label(
-                "//testing/it_sidecar"
-                ":it_sidecar",
-            ),
+            default = Label("//testing/it_sidecar/cmd:it_sidecar"),
             cfg = "exec",
             executable = True,
         ),
@@ -909,25 +870,16 @@ k8s_test_setup = rule(
             executable = True,
         ),
         "_namespace_template": attr.label(
-            default = Label(
-                "//skylib"
-                ":k8s_test_namespace.sh.tpl",
-            ),
+            default = Label("//skylib:k8s_test_namespace.sh.tpl"),
             allow_single_file = True,
         ),
         "_set_namespace": attr.label(
-            default = Label(
-                "//skylib/kustomize"
-                ":set_namespace",
-            ),
+            default = Label("//skylib/kustomize:set_namespace"),
             cfg = "exec",
             executable = True,
         ),
         "_it_manifest_filter": attr.label(
-            default = Label(
-                "//testing/it_manifest_filter"
-                ":it_manifest_filter",
-            ),
+            default = Label("//testing/it_manifest_filter/cmd:it_manifest_filter"),
             cfg = "exec",
             executable = True,
         ),
