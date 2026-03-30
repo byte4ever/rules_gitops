@@ -176,6 +176,9 @@ def _kustomize_impl(ctx):
             if kpi.legacy_image_name:
                 resolver_part += " --image {}={}{}$(cat {})".format(kpi.legacy_image_name, regrepo, sep, kpi.digestfile.path)
             tmpfiles.append(kpi.digestfile)
+            raw_df = getattr(kpi, "raw_digestfile", kpi.digestfile)
+            if raw_df != kpi.digestfile:
+                tmpfiles.append(raw_df)
             transitive_runfiles.append(img[DefaultInfo].default_runfiles)
 
     template_part = ""
@@ -210,9 +213,10 @@ def _kustomize_impl(ctx):
                 sep = ":" if getattr(kpi, "digest_tag", False) else "@"
                 template_part += " --variable={}={}{}$(cat {})".format(kpi.image_label, regrepo, sep, kpi.digestfile.path)
 
-                # Image digest
-                template_part += " --variable={}=$(cat {} | cut -d ':' -f 2)".format(str(kpi.image_label) + ".digest", kpi.digestfile.path)
-                template_part += " --variable={}=$(cat {} | cut -c 8-17)".format(str(kpi.image_label) + ".short-digest", kpi.digestfile.path)
+                # Image digest -- always use the raw digest file (sha256:hex format)
+                raw_df = getattr(kpi, "raw_digestfile", kpi.digestfile)
+                template_part += " --variable={}=$(cat {} | cut -d ':' -f 2)".format(str(kpi.image_label) + ".digest", raw_df.path)
+                template_part += " --variable={}=$(cat {} | cut -c 8-17)".format(str(kpi.image_label) + ".short-digest", raw_df.path)
 
                 if kpi.legacy_image_name:
                     template_part += " --variable={}={}{}$(cat {})".format(kpi.legacy_image_name, regrepo, sep, kpi.digestfile.path)

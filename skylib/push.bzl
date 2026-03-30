@@ -27,6 +27,7 @@ K8sPushInfo = provider(
         "registry": "container registry host",
         "repository": "image repository path",
         "digestfile": "file containing image digest or digest-based tag",
+        "raw_digestfile": "file containing the raw sha256 digest (always sha256:hex format, even when digest_tag is True)",
         "digest_tag": "if True, digestfile contains a tag (use : separator) instead of a digest (@ separator)",
     },
 )
@@ -88,6 +89,7 @@ def _impl(ctx):
                 registry = kpi.registry,
                 repository = kpi.repository,
                 digestfile = kpi.digestfile,
+                raw_digestfile = getattr(kpi, "raw_digestfile", kpi.digestfile),
                 digest_tag = getattr(kpi, "digest_tag", False),
             ),
         ]
@@ -158,7 +160,7 @@ def _impl(ctx):
     )
 
     if ctx.attr.image_digest_tag:
-        tag = "$(cat {} | cut -d ':' -f 2 | cut -c 1-10)".format(_get_runfile_path(ctx, ctx.outputs.digest))
+        tag = "sha256-$(cat {} | cut -d ':' -f 2 | cut -c 1-10)".format(_get_runfile_path(ctx, ctx.outputs.digest))
         pusher_input.append(ctx.outputs.digest)
 
     pusher_args.append("--dst={registry}/{repository}:{tag}".format(
@@ -221,6 +223,7 @@ def _impl(ctx):
             registry = registry,
             repository = repository,
             digestfile = digest_ref_file,
+            raw_digestfile = ctx.outputs.digest,
             digest_tag = use_digest_tag,
         ),
     ]
