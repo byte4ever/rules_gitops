@@ -1,5 +1,5 @@
-load(":stamp.bzl", "more_stable_status", "stamp_value")
 load("@rules_shell//shell:sh_binary.bzl", "sh_binary")
+load(":stamp.bzl", "more_stable_status", "stamp_value")
 
 exports_files([
     "k8s_gitops.sh.tpl",
