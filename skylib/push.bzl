@@ -21,13 +21,15 @@ load("@bazel_skylib//lib:dicts.bzl", "dicts")
 
 K8sPushInfo = provider(
     "Information required to inject image into a manifest",
-    fields = [
-        "image_label",  # bazel target label of the image
-        "legacy_image_name",  # optional short name
-        "registry",
-        "repository",
-        "digestfile",
-    ],
+    fields = {
+        "image_label": "bazel target label of the image",
+        "legacy_image_name": "optional short name for backward compat",
+        "registry": "container registry host",
+        "repository": "image repository path",
+        "digestfile": "file containing image digest or digest-based tag",
+        "raw_digestfile": "file containing the raw sha256 digest (always sha256:hex format, even when digest_tag is True)",
+        "digest_tag": "if True, digestfile contains a tag (use : separator) instead of a digest (@ separator)",
+    },
 )
 
 def _runfile_path(ctx, f):
@@ -87,6 +89,8 @@ def _impl(ctx):
                 registry = kpi.registry,
                 repository = kpi.repository,
                 digestfile = kpi.digestfile,
+                raw_digestfile = getattr(kpi, "raw_digestfile", kpi.digestfile),
+                digest_tag = getattr(kpi, "digest_tag", False),
             ),
         ]
 
@@ -156,7 +160,7 @@ def _impl(ctx):
     )
 
     if ctx.attr.image_digest_tag:
-        tag = "$(cat {} | cut -d ':' -f 2 | cut -c 1-7)".format(_get_runfile_path(ctx, ctx.outputs.digest))
+        tag = "sha256-$(cat {} | cut -d ':' -f 2 | cut -c 1-10)".format(_get_runfile_path(ctx, ctx.outputs.digest))
         pusher_input.append(ctx.outputs.digest)
 
     pusher_args.append("--dst={registry}/{repository}:{tag}".format(
@@ -188,6 +192,26 @@ def _impl(ctx):
     runfiles = ctx.runfiles(files = pusher_runfiles)
     runfiles = runfiles.merge(ctx.attr._pusher[DefaultInfo].default_runfiles)
 
+    # When image_digest_tag is enabled, create a file containing the
+    # digest-based tag (e.g. "sha256-e1375f49ab") for use in manifest
+    # references with a : separator instead of @.
+    digest_ref_file = ctx.outputs.digest
+    use_digest_tag = ctx.attr.image_digest_tag
+
+    if use_digest_tag:
+        digest_tag_file = ctx.actions.declare_file(ctx.attr.name + ".digest_tag")
+        ctx.actions.run_shell(
+            inputs = [ctx.outputs.digest],
+            outputs = [digest_tag_file],
+            # Input:  "sha256:e1375f49abc123..."
+            # Output: "sha256-e1375f49ab"
+            command = """sed 's/^sha256:/sha256-/' "$1" | cut -c 1-17 > "$2" """,
+            arguments = [ctx.outputs.digest.path, digest_tag_file.path],
+            mnemonic = "DigestTag",
+            progress_message = "Generating digest-based tag for %s" % ctx.label,
+        )
+        digest_ref_file = digest_tag_file
+
     return [
         DefaultInfo(
             executable = ctx.outputs.executable,
@@ -198,7 +222,9 @@ def _impl(ctx):
             legacy_image_name = ctx.attr.legacy_image_name,
             registry = registry,
             repository = repository,
-            digestfile = ctx.outputs.digest,
+            digestfile = digest_ref_file,
+            raw_digestfile = ctx.outputs.digest,
+            digest_tag = use_digest_tag,
         ),
     ]
 

@@ -21,6 +21,8 @@
 # 86ade29284ca11deeead86c061e9ba9bd0d157e0/
 # go/private/tools/gazelle.bzl
 
+load("@rules_shell//shell:sh_binary.bzl", "sh_binary")
+
 # Writes out a script which saves the runfiles
 # directory, changes to the workspace root, and then
 # runs a command.
@@ -126,7 +128,7 @@ def workspace_binary(
         root_file = root_file,
         tags = ["manual"],
     )
-    native.sh_binary(
+    sh_binary(
         name = name,
         srcs = [":" + script_name],
         args = args,
