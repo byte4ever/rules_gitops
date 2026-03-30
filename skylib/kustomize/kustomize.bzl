@@ -171,9 +171,10 @@ def _kustomize_impl(ctx):
             if "{" in regrepo:
                 regrepo = stamp(ctx, regrepo, tmpfiles, ctx.attr.name + regrepo.replace("/", "_"))
 
-            resolver_part += " --image {}={}@$(cat {})".format(kpi.image_label, regrepo, kpi.digestfile.path)
+            sep = ":" if getattr(kpi, "digest_tag", False) else "@"
+            resolver_part += " --image {}={}{}$(cat {})".format(kpi.image_label, regrepo, sep, kpi.digestfile.path)
             if kpi.legacy_image_name:
-                resolver_part += " --image {}={}@$(cat {})".format(kpi.legacy_image_name, regrepo, kpi.digestfile.path)
+                resolver_part += " --image {}={}{}$(cat {})".format(kpi.legacy_image_name, regrepo, sep, kpi.digestfile.path)
             tmpfiles.append(kpi.digestfile)
             transitive_runfiles.append(img[DefaultInfo].default_runfiles)
 
@@ -206,14 +207,15 @@ def _kustomize_impl(ctx):
                 regrepo = kpi.registry + "/" + kpi.repository
                 if "{" in regrepo:
                     regrepo = stamp(ctx, regrepo, tmpfiles, ctx.attr.name + regrepo.replace("/", "_"))
-                template_part += " --variable={}={}@$(cat {})".format(kpi.image_label, regrepo, kpi.digestfile.path)
+                sep = ":" if getattr(kpi, "digest_tag", False) else "@"
+                template_part += " --variable={}={}{}$(cat {})".format(kpi.image_label, regrepo, sep, kpi.digestfile.path)
 
                 # Image digest
                 template_part += " --variable={}=$(cat {} | cut -d ':' -f 2)".format(str(kpi.image_label) + ".digest", kpi.digestfile.path)
                 template_part += " --variable={}=$(cat {} | cut -c 8-17)".format(str(kpi.image_label) + ".short-digest", kpi.digestfile.path)
 
                 if kpi.legacy_image_name:
-                    template_part += " --variable={}={}@$(cat {})".format(kpi.legacy_image_name, regrepo, kpi.digestfile.path)
+                    template_part += " --variable={}={}{}$(cat {})".format(kpi.legacy_image_name, regrepo, sep, kpi.digestfile.path)
 
         template_part += " "
 
