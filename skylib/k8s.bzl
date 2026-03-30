@@ -114,6 +114,7 @@ def _image_pushes(
         image_repository,
         image_repository_prefix,
         image_digest_tag,
+        insecure,
         tags):
     image_pushes = []
 
@@ -149,6 +150,7 @@ def _image_pushes(
                 name = rule_name + name_suffix,
                 image = image_label,
                 image_digest_tag = image_digest_tag,
+                insecure = insecure,
                 legacy_image_name = legacy_name,
                 registry = image_registry,
                 repository = image_repository,
@@ -196,6 +198,7 @@ def k8s_deploy(
         deps_aliases = {},
         images = [],
         image_digest_tag = False,
+        image_registry_insecure = False,
         image_registry = "docker.io",
         image_repository = None,
         image_repository_prefix = None,
@@ -247,6 +250,8 @@ def k8s_deploy(
         deps_aliases: Aliases for template deps.
         images: Container images to push.
         image_digest_tag: Tag images with digest.
+        image_registry_insecure: Allow insecure (HTTP)
+            registry connections.
         image_registry: Registry to push to.
         image_repository: Repository path for push.
         image_repository_prefix: Prefix added to
@@ -295,6 +300,7 @@ def k8s_deploy(
                 "{BUILD_USER}"
             ),
             image_digest_tag = image_digest_tag,
+            insecure = image_registry_insecure,
             tags = tags,
         )
         kustomize(
@@ -364,6 +370,7 @@ def k8s_deploy(
                 image_repository_prefix
             ),
             image_digest_tag = image_digest_tag,
+            insecure = image_registry_insecure,
             tags = tags,
         )
         kustomize(
