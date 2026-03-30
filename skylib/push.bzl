@@ -95,6 +95,8 @@ def _impl(ctx):
         ]
 
     # -- Primary path: push an oci_image target --
+    crane = ctx.toolchains["@rules_oci//oci:crane_toolchain_type"]
+    crane_binary = crane.crane_info.binary
 
     pusher_args = []
     pusher_input = []
@@ -125,14 +127,6 @@ def _impl(ctx):
     # We pass the image directory to the pusher.
     image_files = ctx.attr.image[DefaultInfo].files.to_list()
     pusher_input += image_files
-
-    # TODO(rules_oci): The oci_push rule from rules_oci works differently than
-    # the rules_docker pusher. rules_oci provides `oci_push` as a rule that
-    # generates a launcher script. For our use case, we need to:
-    # 1. Compute the digest from the OCI layout
-    # 2. Push via crane/oci_push tooling
-    # For now, we generate the digest by reading the OCI index and produce the
-    # push script via the tag template.
 
     # Generate digest file from the OCI image layout.
     # The OCI image layout contains an index.json with the manifest digest.
@@ -169,14 +163,17 @@ def _impl(ctx):
         tag = tag,
     ))
 
-    # TODO(rules_oci): Wire up crane-based push. The _pusher attr should point
-    # to a crane binary or an oci_push wrapper that accepts --dst and OCI layout
-    # directory arguments. For now we reference a placeholder.
     for f in image_files:
         pusher_args.append("--image-dir=%s" % _get_runfile_path(ctx, f))
 
+    pusher_args.insert(0, "--crane=%s" % _get_runfile_path(ctx, crane_binary))
+    pusher_input.append(crane_binary)
+
     if ctx.attr.skip_unchanged_digest:
         pusher_args.append("-skip-unchanged-digest")
+
+    if ctx.attr.insecure:
+        pusher_args.append("--insecure")
 
     ctx.actions.expand_template(
         template = ctx.file._tag_tpl,
@@ -191,6 +188,7 @@ def _impl(ctx):
     pusher_runfiles = [ctx.executable._pusher] + pusher_input
     runfiles = ctx.runfiles(files = pusher_runfiles)
     runfiles = runfiles.merge(ctx.attr._pusher[DefaultInfo].default_runfiles)
+    runfiles = runfiles.merge(crane.default.default_runfiles)
 
     # When image_digest_tag is enabled, create a file containing the
     # digest-based tag (e.g. "sha256-e1375f49ab") for use in manifest
@@ -254,6 +252,10 @@ Args:
             mandatory = False,
             doc = "Tag the image with the container digest, default to False",
         ),
+        "insecure": attr.bool(
+            default = False,
+            doc = "Allow insecure (HTTP/plain) registry connections for crane push.",
+        ),
         "legacy_image_name": attr.string(doc = "image name used in deployments, for compatibility with k8s_deploy. Do not use, refer images by full bazel target name instead"),
         "registry": attr.string(
             doc = "The registry to which we are pushing.",
@@ -287,9 +289,6 @@ Args:
             allow_single_file = True,
         ),
         "_pusher": attr.label(
-            # TODO(rules_oci): Point to crane binary or oci_push wrapper.
-            # For rules_oci, this should be something like
-            # "@oci_crane_toolchains//:current_toolchain" or a custom push script.
             default = Label("//skylib:oci_push_launcher"),
             cfg = "exec",
             executable = True,
@@ -305,4 +304,5 @@ Args:
     outputs = {
         "digest": "%{name}.digest",
     },
+    toolchains = ["@rules_oci//oci:crane_toolchain_type"],
 )
